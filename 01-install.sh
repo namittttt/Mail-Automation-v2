@@ -42,7 +42,7 @@ php-cli \
 php-common \
 php-ldap \
 php-mysql \
-php-imap \
+#php-imap 
 php-mbstring \
 php-intl \
 php-xml \

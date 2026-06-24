@@ -41,7 +41,14 @@ echo "[2/7] Configuring Rspamd Rate Limiting..."
 
 cat > /etc/rspamd/local.d/ratelimit.conf <<EOF
 rates {
-authenticated = "30 / 1h";
+  authenticated = {
+    bucket = [
+      {
+        burst = 30;
+        rate = "300 / 1h";
+      }
+    ];
+  }
 }
 EOF
 
@@ -49,28 +56,26 @@ echo
 echo "[3/7] Configuring Greylisting..."
 
 cat > /etc/rspamd/local.d/greylist.conf <<EOF
-greylist {
 enabled = true;
-}
 EOF
-
 echo
 echo "[4/7] Configuring RBL Checks..."
 
 cat > /etc/rspamd/local.d/rbl.conf <<EOF
 rbls {
-spamhaus {
-symbol = "SPAMHAUS";
-rbl = "zen.spamhaus.org";
-}
 
-spamcop {
-symbol = "SPAMCOP";
-rbl = "bl.spamcop.net";
-}
+  spamhaus {
+    rbl = "zen.spamhaus.org";
+    checks = ["from"];
+  }
+
+  spamcop {
+    rbl = "bl.spamcop.net";
+    checks = ["from"];
+  }
+
 }
 EOF
-
 echo
 echo "[5/7] Hardening Postfix..."
 
@@ -94,6 +99,9 @@ postfix check
 systemctl restart postfix
 systemctl restart rspamd
 systemctl restart fail2ban
+systemctl restart fail2ban
+
+sleep 5
 
 echo
 echo "[7/7] Validating Security Stack..."
