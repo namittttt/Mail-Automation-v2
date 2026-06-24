@@ -16,8 +16,8 @@ read -p "Domain Name (example: namit.com): " DOMAIN
 
 DOMAIN=$(echo "$DOMAIN" | tr '[:upper:]' '[:lower:]')
 
-FIRST_PART=$(echo "$DOMAIN" | cut -d'.' -f1)
-SECOND_PART=$(echo "$DOMAIN" | cut -d'.' -f2)
+FIRST_PART=$(echo "$DOMAIN" | awk -F. '{print $(NF-1)}')
+SECOND_PART=$(echo "$DOMAIN" | awk -F. '{print $NF}')
 
 BASEDN="dc=$FIRST_PART,dc=$SECOND_PART"
 ADMINDN="cn=admin,$BASEDN"
@@ -118,6 +118,8 @@ mkdir -p /opt/mailserver
 echo
 echo "[5/6] Saving Configuration..."
 
+RSPAMD_PASSWORD=$(pwgen 16 1)
+
 cat > /opt/mailserver/mailserver.conf <<EOF
 DOMAIN=$DOMAIN
 MAILHOST=$MAILHOST
@@ -127,12 +129,13 @@ ADMINDN=$ADMINDN
 
 LDAPPASS=$LDAPPASS
 
+RSPAMD_PASSWORD=$RSPAMD_PASSWORD
+
 USER_OU=$USER_OU
 GROUP_OU=$GROUP_OU
 EOF
-
 chmod 600 /opt/mailserver/mailserver.conf
-
+chown root:root /opt/mailserver/mailserver.conf
 echo
 echo "[6/6] Verifying LDAP Tree..."
 

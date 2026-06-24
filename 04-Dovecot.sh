@@ -63,8 +63,6 @@ echo "[3/7] Enabling LDAP Auth..."
 cat > /etc/dovecot/conf.d/10-auth.conf <<EOF
 auth_allow_cleartext = yes
 
-disable_plaintext_auth = no
-
 auth_mechanisms = plain login
 
 !include auth-ldap.conf.ext
@@ -113,7 +111,41 @@ service lmtp {
   }
 }
 EOF
+cat > /etc/dovecot/conf.d/15-mailboxes.conf <<EOF
+namespace inbox {
+  inbox = yes
 
+  mailbox Drafts {
+    special_use = \Drafts
+  }
+
+  mailbox Junk {
+    special_use = \Junk
+  }
+
+  mailbox Trash {
+    special_use = \Trash
+  }
+
+  mailbox Sent {
+    special_use = \Sent
+  }
+
+  mailbox "Sent Messages" {
+    special_use = \Sent
+  }
+}
+EOF
+echo "[6/8] Configuring Logging..."
+
+cat > /etc/dovecot/conf.d/99-logging.conf <<EOF
+log_path = /var/log/dovecot.log
+
+auth_verbose = yes
+auth_debug = yes
+auth_debug_passwords = yes
+mail_debug = yes
+EOF
 echo "[7/7] Restarting Dovecot..."
 
 doveconf -n >/dev/null
