@@ -1,0 +1,168 @@
+#!/bin/bash
+set -e
+
+echo "========================================"
+echo " Mail Server Installation"
+echo "========================================"
+
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root"
+    exit 1
+fi
+
+echo
+echo "[1/9] Updating Package Repository..."
+apt update
+
+echo
+echo "[2/9] Installing Core Dependencies..."
+export DEBIAN_FRONTEND=noninteractive
+apt install -y \
+    curl \
+    gnupg2 \
+    lsb-release \
+    ca-certificates \
+    apt-transport-https \
+    software-properties-common
+
+echo
+echo "[3/9] Adding Rspamd Official Repository..."
+# rspamd is NOT in the standard Ubuntu/Debian repos.
+# The version in the default repo is outdated and missing features.
+# This adds the official rspamd repo which always has the latest stable.
+curl -fsSL https://rspamd.com/apt-stable/gpg.key \
+    | gpg --dearmor \
+    | tee /usr/share/keyrings/rspamd.gpg > /dev/null
+
+echo "deb [signed-by=/usr/share/keyrings/rspamd.gpg] \
+https://rspamd.com/apt-stable/ $(lsb_release -cs) main" \
+    > /etc/apt/sources.list.d/rspamd.list
+
+apt update
+
+echo
+echo "[4/9] Installing Mail Server Packages..."
+apt install -y \
+    postfix \
+    postfix-ldap \
+    dovecot-core \
+    dovecot-imapd \
+    dovecot-pop3d \
+    dovecot-lmtpd \
+    dovecot-ldap \
+    dovecot-sieve \
+    dovecot-managesieved \
+    dovecot-imapsieve \
+    slapd \
+    ldap-utils \
+    apache2 \
+    apache2-utils \
+    roundcube \
+    roundcube-core \
+    roundcube-mysql \
+    mariadb-server \
+    mariadb-client \
+    php \
+    php-cli \
+    php-common \
+    php-ldap \
+    php-mysql \
+    php-imap \
+    php-mbstring \
+    php-intl \
+    php-xml \
+    php-curl \
+    php-zip \
+    pwgen \
+    mailutils \
+    redis-server \
+    rspamd \
+    clamav \
+    clamav-daemon \
+    fail2ban \
+    telnet \
+    certbot \
+    python3-certbot-apache \
+    openssl
+
+echo
+echo "[5/9] Enabling Services at Boot..."
+systemctl enable slapd
+systemctl enable mariadb
+systemctl enable postfix
+systemctl enable apache2
+systemctl enable dovecot
+systemctl enable redis-server
+systemctl enable rspamd
+systemctl enable fail2ban
+
+echo
+echo "[6/9] Starting Services..."
+systemctl restart slapd
+systemctl restart mariadb
+systemctl restart postfix
+systemctl restart apache2
+systemctl restart dovecot
+systemctl restart redis-server
+
+echo
+echo "[7/9] Creating Roundcube Database..."
+# Generate a random password — NOT hardcoded
+RC_DB_PASS=$(pwgen 20 1)
+
+mysql <<EOF
+CREATE DATABASE IF NOT EXISTS roundcube CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'roundcube'@'localhost' IDENTIFIED BY '${RC_DB_PASS}';
+GRANT ALL PRIVILEGES ON roundcube.* TO 'roundcube'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+
+# Save the generated password for use by 05-roundcube.sh
+echo "RC_DB_PASS=${RC_DB_PASS}" > /opt/mailserver-install.tmp
+chmod 600 /opt/mailserver-install.tmp
+
+echo
+echo "[8/9] Creating vmail System User..."
+# vmail is the single Linux user that owns all virtual mailboxes.
+# All Maildir directories are owned by this user.
+# Dovecot runs mail storage operations as vmail.
+if ! getent group vmail > /dev/null 2>&1; then
+    groupadd -g 5000 vmail
+fi
+if ! id vmail > /dev/null 2>&1; then
+    useradd -r -g vmail -u 5000 -d /var/mail/vhosts \
+        -s /usr/sbin/nologin vmail
+fi
+mkdir -p /var/mail/vhosts
+chown -R vmail:vmail /var/mail/vhosts
+chmod 750 /var/mail/vhosts
+
+echo
+echo "[9/9] Verifying Services..."
+echo -n "LDAP     : "; systemctl is-active slapd
+echo -n "MariaDB  : "; systemctl is-active mariadb
+echo -n "Postfix  : "; systemctl is-active postfix
+echo -n "Apache2  : "; systemctl is-active apache2
+echo -n "Dovecot  : "; systemctl is-active dovecot
+echo -n "Redis    : "; systemctl is-active redis-server
+
+echo
+echo "========================================"
+echo " Installation Complete"
+echo "========================================"
+echo
+echo "Installed Components:"
+echo " - OpenLDAP (slapd + ldap-utils)"
+echo " - MariaDB"
+echo " - Postfix + postfix-ldap"
+echo " - Dovecot (IMAP + LMTP + LDAP + Sieve + ManageSieve + imapsieve)"
+echo " - Roundcube webmail"
+echo " - Apache2 + PHP"
+echo " - Redis"
+echo " - Rspamd (from official repo)"
+echo " - ClamAV"
+echo " - Fail2ban"
+echo " - Certbot"
+echo
+echo "Roundcube DB password saved to /opt/mailserver-install.tmp"
+echo "This file is read by 05-roundcube.sh and deleted after use."
