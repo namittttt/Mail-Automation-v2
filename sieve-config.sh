@@ -1,30 +1,53 @@
-
 #!/bin/bash
 
-echo "[1/4] Installing Sieve packages..."
+echo "[1/5] Installing Sieve packages..."
 sudo apt install -y dovecot-sieve dovecot-managesieved roundcube-plugins
 
-echo "[2/4] Uncommenting sieve in dovecot config files..."
+echo "[2/5] Configuring 20-imap.conf..."
+sudo cat > /etc/dovecot/conf.d/20-imap.conf <<'EOF'
+protocol imap {
+  mail_plugins {
+    sieve = yes
+  }
+}
+EOF
 
-# Uncomment mail_plugins { and sieve = yes in 20-imap.conf
-sudo sed -i 's/^[[:space:]]*#[[:space:]]*mail_plugins {/mail_plugins {/' /etc/dovecot/conf.d/20-imap.conf
-sudo sed -i 's/^[[:space:]]*#[[:space:]]*sieve = yes/sieve = yes/' /etc/dovecot/conf.d/20-imap.conf
+echo "[3/5] Configuring 20-lmtp.conf..."
+sudo cat > /etc/dovecot/conf.d/20-lmtp.conf <<'EOF'
+protocol lmtp {
+  mail_plugins = $mail_plugins sieve
+}
+protocol lmtp {
+  mail_plugins {
+    sieve = yes
+  }
+  auth_username_format = %{user | lower}
+}
+EOF
 
-# Uncomment mail_plugins in 20-lmtp.conf
-sudo sed -i 's/^[[:space:]]*#[[:space:]]*mail_plugins = \$mail_plugins sieve/mail_plugins = $mail_plugins sieve/' /etc/dovecot/conf.d/20-lmtp.conf
-sudo sed -i 's/^[[:space:]]*#[[:space:]]*mail_plugins {/mail_plugins {/' /etc/dovecot/conf.d/20-lmtp.conf
-sudo sed -i 's/^[[:space:]]*#[[:space:]]*sieve = yes/sieve = yes/' /etc/dovecot/conf.d/20-lmtp.conf
+echo "[4/5] Configuring 15-lda.conf..."
+sudo cat > /etc/dovecot/conf.d/15-lda.conf <<'EOF'
+protocol lda {
+  mail_plugins {
+    sieve = yes
+  }
+}
+EOF
 
-# Uncomment mail_plugins { and sieve = yes in 15-lda.conf
-sudo sed -i 's/^[[:space:]]*#[[:space:]]*mail_plugins {/mail_plugins {/' /etc/dovecot/conf.d/15-lda.conf
-sudo sed -i 's/^[[:space:]]*#[[:space:]]*sieve = yes/sieve = yes/' /etc/dovecot/conf.d/15-lda.conf
+echo "[5/5] Configuring Roundcube managesieve..."
+sudo cat > /var/lib/roundcube/config/config.inc.php <<'EOF'
+$config['plugins'] = [
+     'managesieve',
+];
+EOF
 
-echo "[3/4] Enabling roundcube managesieve plugin..."
-sudo sed -i "s/^[[:space:]]*#[[:space:]]*'managesieve'/'managesieve'/" /var/lib/roundcube/config/config.inc.php
-sudo sed -i "s/^[[:space:]]*#[[:space:]]*\$config\['managesieve_host'\]/\$config['managesieve_host']/" /var/lib/roundcube/plugins/managesieve/config.inc.php
+sudo cat > /var/lib/roundcube/plugins/managesieve/config.inc.php <<'EOF'
+$config['managesieve_host'] = 'localhost';
+EOF
 
-echo "[4/4] Restarting services..."
+echo "[6/6] Restarting services..."
 sudo systemctl restart dovecot
 sudo systemctl restart apache2
 
-echo "✓ Complete! Check Settings → Filters in Roundcube"
+echo "✓ Complete!"
+sudo doveconf -n | grep -A 5 "mail_plugins"
