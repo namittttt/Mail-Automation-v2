@@ -73,32 +73,6 @@ userdb ldap {
 }
 EOF
 
-# ─────────────────────────────────────────────
-# [4/11] Master user
-# ─────────────────────────────────────────────
-echo "[4/11] Configuring master user..."
-
-MASTER_PASS=$(pwgen 24 1)
-MASTER_HASH=$(doveadm pw -s SSHA512 -p "$MASTER_PASS" 2>/dev/null || \
-              doveadm pw -s SHA512-CRYPT -p "$MASTER_PASS")
-
-mkdir -p /etc/dovecot/private
-cat > /etc/dovecot/private/master-users <<EOF
-mailadmin:$MASTER_HASH
-EOF
-chmod 600 /etc/dovecot/private/master-users
-
-# Save master password to mailserver.conf for reference
-echo "MASTER_USER=mailadmin" >> /opt/mailserver/mailserver.conf
-echo "MASTER_PASS=$MASTER_PASS" >> /opt/mailserver/mailserver.conf
-
-cat > /etc/dovecot/conf.d/auth-master.conf.ext <<EOF
-# Master users lookup 
-passdb passwd-file {
-  master = yes
-  passwd_file_path = /etc/dovecot/private/master-users
-}
-EOF
 
 # ─────────────────────────────────────────────
 # [5/11] Auth mechanisms + auth config
@@ -178,60 +152,6 @@ EOF
 
 # Tell Postfix to check quota before delivery
 #postconf -e "smtpd_end_of_data_restrictions = check_policy_service inet:localhost:12340"
-
-# [8/11] Sieve filters (Flat Direct Configuration Elements)
-# ─────────────────────────────────────────────
-# [8/11] Sieve filters (Dovecot v2.4+ Flat Engine Structure)
-# ─────────────────────────────────────────────
-echo "[8/11] Configuring Sieve..."
-#mkdir -p /etc/dovecot/sieve/global
-
-#cat > /etc/dovecot/conf.d/90-sieve.conf <<EOF
-# Enable modern Pigeonhole plugins globally
-#sudo cat > /etc/dovecot/conf.d/90-sieve.conf <<'EOF'
-# Enable sieve plugin
-#mail_plugins = $mail_plugins sieve
-
-# User's personal sieve scripts directory
-#sieve = file:~/sieve;active=~/.dovecot.sieve
-
-# Global scripts: run for every user (before personal scripts)
-#sieve_global = /etc/dovecot/sieve/global/
-
-# ManageSieve: lets email clients manage sieve scripts remotely
-#sieve_plugins = sieve_imapsieve sieve_extprograms
-
-# imapsieve: fire sieve scripts when IMAP folder events happen
-# Detect "user moved message to Junk" → train rspamd
-#imapsieve_mailbox1_name = Junk
-#imapsieve_mailbox1_causes = COPY FLAG
-#imapsieve_mailbox1_before = file:/etc/dovecot/sieve/global/learn-spam.sieve
-
-#imapsieve_mailbox2_name = INBOX
-#imapsieve_mailbox2_from = Junk
-#imapsieve_mailbox2_causes = COPY
-#imapsieve_mailbox2_before = file:/etc/dovecot/sieve/global/learn-ham.sieve
-
-# Allow sieve to run external programs (rspamc)
-#sieve_pipe_bin_dir = /usr/bin
-#sieve_global_extensions = +vnd.dovecot.pipe +vnd.dovecot.environment
-#EOF
-
-# ManageSieve service (port 4190)
-#cat > /etc/dovecot/conf.d/20-managesieve.conf <<EOF
-#service managesieve-login {
- # inet_listener sieve {
-  #  port = 4190
- # }
-#}
-#service managesieve {
- # process_limit = 1024
-#}
-#protocol sieve {
- # managesieve_logout_format = bytes ( in=%i : out=%o )
-#}
-#EOF
-
 
 
 # [9/11] Spam reporting via imapsieve
