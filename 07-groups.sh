@@ -38,7 +38,6 @@ while true; do
     read -p "Member email (or Enter to finish): " MEMBER_EMAIL
     [ -z "$MEMBER_EMAIL" ] && break
 
-    # Verify the user exists in LDAP before adding to group
     MEMBER_UID=$(echo "$MEMBER_EMAIL" | cut -d'@' -f1)
     MEMBER_DN="uid=$MEMBER_UID,ou=$USER_OU,$BASEDN"
 
@@ -73,7 +72,6 @@ echo
 read -p "Create group? (y/n): " CONFIRM
 [ "$CONFIRM" != "y" ] && { echo "Cancelled."; exit 0; }
 
-# ── Check if group already exists ──
 EXISTING=$(ldapsearch \
     -x -LLL \
     -D "$ADMINDN" -w "$LDAPPASS" \
@@ -85,7 +83,6 @@ LDIF_FILE="/tmp/group_${GROUP}_$$.ldif"
 if [ -n "$EXISTING" ]; then
     echo
     echo "Group already exists. Updating members..."
-    # Build a modify LDIF to replace the member list
     {
         echo "dn: $GROUP_DN"
         echo "changetype: modify"
@@ -94,11 +91,10 @@ if [ -n "$EXISTING" ]; then
             echo "member: $m"
         done
     } > "$LDIF_FILE"
-    ldapmodify -x \ -D \ "$ADMINDN" -w \ "$LDAPPASS" -f \ "$LDIF_FILE"
+    ldapmodify -x -D "$ADMINDN" -w "$LDAPPASS" -f "$LDIF_FILE"
 else
     echo
     echo "Creating LDAP group entry..."
-    # groupOfNames requires at least one member attribute
     {
         echo "dn: $GROUP_DN"
         echo "objectClass: top"
@@ -110,7 +106,7 @@ else
             echo "member: $m"
         done
     } > "$LDIF_FILE"
-    ldapadd \ -x \ -D \ "$ADMINDN" -w \ "$LDAPPASS" -f \ "$LDIF_FILE"
+    ldapadd -x -D "$ADMINDN" -w "$LDAPPASS" -f "$LDIF_FILE"
 fi
 
 rm -f "$LDIF_FILE"
@@ -125,9 +121,6 @@ ldapsearch \
 
 echo
 echo "Reloading Postfix..."
-# Postfix reads ldap-groups.cf on the fly for each lookup.
-# No postmap needed — LDAP lookups are live.
-# Restart ensures the ldap connection pool refreshes.
 postfix check
 systemctl reload postfix
 
@@ -141,3 +134,4 @@ echo " Members : ${#MEMBERS[@]} users"
 echo
 echo " To test the alias:"
 echo "   postmap -q $ALIAS ldap:/etc/postfix/ldap-groups.cf"
+
