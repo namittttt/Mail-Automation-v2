@@ -81,10 +81,7 @@ echo "[5/11] Configuring auth mechanisms..."
 cat > /etc/dovecot/conf.d/10-auth.conf <<EOF
 auth_allow_cleartext = no
 auth_mechanisms = plain login
-auth_master_user_separator = *
-
 !include auth-ldap.conf.ext
-!include auth-master.conf.ext
 EOF
 
 # ─────────────────────────────────────────────
