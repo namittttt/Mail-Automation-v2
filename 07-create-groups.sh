@@ -34,9 +34,10 @@ if [ "$CONFIRM" != "y" ]; then
     echo "Cancelled"
     exit 0
 fi
+touch /etc/postfix/virtual
 
 grep -v "^${ALIAS}[[:space:]]" \
-touch /etc/postfix/virtual
+
 
 /etc/postfix/virtual > /tmp/virtual.tmp || true
 
