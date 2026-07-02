@@ -126,58 +126,58 @@ EOF
 
 # [7/11] Quota (Flat Direct Configuration Elements)
 
-echo "[7/11] Configuring quota..."
+#echo "[7/11] Configuring quota..."
 # Enable quota plugin
-mail_plugins = quota
+#mail_plugins = quota
 
 # Quota configuration
-quota "User quota" {
-  driver = count
-}
+#quota "User quota" {
+ # driver = count
+#}
 
 # Quota exceeded warning at 90%
-quota_warning "90percent" {
-  bytes = 90%
-  command = "quota-warning 90 %u"
-}
+#quota_warning "90percent" {
+ # bytes = 90%
+ # command = "quota-warning 90 %u"
+#}
 
 # Quota exceeded warning at 100%
-quota_warning "100percent" {
-  bytes = 100%
-  command = "quota-warning 100 %u"
-}
+#quota_warning "100percent" {
+ # bytes = 100%
+  #command = "quota-warning 100 %u"
+#}
 
 # quota-status service: Postfix queries this before accepting a message
-service quota-status {
-  executable = quota-status -p postfix
-  inet_listener {
-    port = 12340
-  }
-}
+#service quota-status {
+ # executable = quota-status -p postfix
+ # inet_listener {
+  #  port = 12340
+ # }
+#}
 
 # Warning script — sends an email to the user when quota is near full
-service quota-warning {
-  executable = script /usr/local/bin/quota-warning.sh
-  user = vmail
-  unix_listener quota-warning {
-    user = vmail
-    mode = 0600
-  }
-}
-EOF
+#service quota-warning {
+ # executable = script /usr/local/bin/quota-warning.sh
+ # user = vmail
+ # unix_listener quota-warning {
+  #  user = vmail
+  #  mode = 0600
+#  }
+#}
+#EOF
 
-cat > /usr/local/bin/quota-warning.sh <<SCRIPT
+#cat > /usr/local/bin/quota-warning.sh <<SCRIPT
 #!/bin/bash
-source /opt/mailserver/mailserver.conf
-PERCENT=\$1
-USER=\$2
-printf "From: postmaster@\${DOMAIN}\nTo: \${USER}\nSubject: Mailbox quota warning: \${PERCENT}%% used\n\nYour mailbox is \${PERCENT}%% full.\nPlease delete old messages or contact your administrator.\n" \
-    | sendmail -f "postmaster@\${DOMAIN}" "\${USER}"
-SCRIPT
-chmod +x /usr/local/bin/quota-warning.sh
+#source /opt/mailserver/mailserver.conf
+#PERCENT=\$1
+#USER=\$2
+#printf "From: postmaster@\${DOMAIN}\nTo: \${USER}\nSubject: Mailbox quota warning: \${PERCENT}%% used\n\nYour mailbox is \${PERCENT}%% full.\nPlease delete old messages or contact your administrator.\n" \
+ #   | sendmail -f "postmaster@\${DOMAIN}" "\${USER}"
+#SCRIPT
+#chmod +x /usr/local/bin/quota-warning.sh
 
 # Tell Postfix to check quota before delivery
-postconf -e "smtpd_end_of_data_restrictions = check_policy_service inet:localhost:12340"
+#postconf -e "smtpd_end_of_data_restrictions = check_policy_service inet:localhost:12340"
 
 # [8/11] Sieve filters (Flat Direct Configuration Elements)
 # ─────────────────────────────────────────────
