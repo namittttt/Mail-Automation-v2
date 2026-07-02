@@ -127,23 +127,24 @@ EOF
 # [7/11] Quota (Flat Direct Configuration Elements)
 
 echo "[7/11] Configuring quota..."
-cat > /etc/dovecot/conf.d/90-quota.conf <<EOF
-# Base default storage rule (if not explicitly overridden in LDAP)
-quota_storage_size = 1G
+# Enable quota plugin
+mail_plugins = quota
 
-quota "" {
-  warning warn-90 {
-    quota_storage_percentage = 90
-    execute quota-warning {
-      args = 90 %{user}
-    }
-  }
-  warning warn-100 {
-    quota_storage_percentage = 100
-    execute quota-warning {
-      args = 100 %{user}
-    }
-  }
+# Quota configuration
+quota "User quota" {
+  driver = count
+}
+
+# Quota exceeded warning at 90%
+quota_warning "90percent" {
+  bytes = 90%
+  command = "quota-warning 90 %u"
+}
+
+# Quota exceeded warning at 100%
+quota_warning "100percent" {
+  bytes = 100%
+  command = "quota-warning 100 %u"
 }
 
 # quota-status service: Postfix queries this before accepting a message
@@ -154,9 +155,10 @@ service quota-status {
   }
 }
 
-# Warning script interface 
+# Warning script — sends an email to the user when quota is near full
 service quota-warning {
   executable = script /usr/local/bin/quota-warning.sh
+  user = vmail
   unix_listener quota-warning {
     user = vmail
     mode = 0600
@@ -164,7 +166,6 @@ service quota-warning {
 }
 EOF
 
-# Quota warning script
 cat > /usr/local/bin/quota-warning.sh <<SCRIPT
 #!/bin/bash
 source /opt/mailserver/mailserver.conf
