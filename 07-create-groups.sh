@@ -36,6 +36,8 @@ if [ "$CONFIRM" != "y" ]; then
 fi
 
 grep -v "^${ALIAS}[[:space:]]" \
+touch /etc/postfix/virtual
+
 /etc/postfix/virtual > /tmp/virtual.tmp || true
 
 mv /tmp/virtual.tmp /etc/postfix/virtual
