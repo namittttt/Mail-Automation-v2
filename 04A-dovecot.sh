@@ -184,53 +184,53 @@ EOF
 # [8/11] Sieve filters (Dovecot v2.4+ Flat Engine Structure)
 # ─────────────────────────────────────────────
 echo "[8/11] Configuring Sieve..."
-mkdir -p /etc/dovecot/sieve/global
+#mkdir -p /etc/dovecot/sieve/global
 
-cat > /etc/dovecot/conf.d/90-sieve.conf <<EOF
+#cat > /etc/dovecot/conf.d/90-sieve.conf <<EOF
 # Enable modern Pigeonhole plugins globally
-sudo cat > /etc/dovecot/conf.d/90-sieve.conf <<'EOF'
+#sudo cat > /etc/dovecot/conf.d/90-sieve.conf <<'EOF'
 # Enable sieve plugin
-mail_plugins = $mail_plugins sieve
+#mail_plugins = $mail_plugins sieve
 
 # User's personal sieve scripts directory
-sieve = file:~/sieve;active=~/.dovecot.sieve
+#sieve = file:~/sieve;active=~/.dovecot.sieve
 
 # Global scripts: run for every user (before personal scripts)
-sieve_global = /etc/dovecot/sieve/global/
+#sieve_global = /etc/dovecot/sieve/global/
 
 # ManageSieve: lets email clients manage sieve scripts remotely
-sieve_plugins = sieve_imapsieve sieve_extprograms
+#sieve_plugins = sieve_imapsieve sieve_extprograms
 
 # imapsieve: fire sieve scripts when IMAP folder events happen
 # Detect "user moved message to Junk" → train rspamd
-imapsieve_mailbox1_name = Junk
-imapsieve_mailbox1_causes = COPY FLAG
-imapsieve_mailbox1_before = file:/etc/dovecot/sieve/global/learn-spam.sieve
+#imapsieve_mailbox1_name = Junk
+#imapsieve_mailbox1_causes = COPY FLAG
+#imapsieve_mailbox1_before = file:/etc/dovecot/sieve/global/learn-spam.sieve
 
-imapsieve_mailbox2_name = INBOX
-imapsieve_mailbox2_from = Junk
-imapsieve_mailbox2_causes = COPY
-imapsieve_mailbox2_before = file:/etc/dovecot/sieve/global/learn-ham.sieve
+#imapsieve_mailbox2_name = INBOX
+#imapsieve_mailbox2_from = Junk
+#imapsieve_mailbox2_causes = COPY
+#imapsieve_mailbox2_before = file:/etc/dovecot/sieve/global/learn-ham.sieve
 
 # Allow sieve to run external programs (rspamc)
-sieve_pipe_bin_dir = /usr/bin
-sieve_global_extensions = +vnd.dovecot.pipe +vnd.dovecot.environment
-EOF
+#sieve_pipe_bin_dir = /usr/bin
+#sieve_global_extensions = +vnd.dovecot.pipe +vnd.dovecot.environment
+#EOF
 
 # ManageSieve service (port 4190)
-cat > /etc/dovecot/conf.d/20-managesieve.conf <<EOF
-service managesieve-login {
-  inet_listener sieve {
-    port = 4190
-  }
-}
-service managesieve {
-  process_limit = 1024
-}
-protocol sieve {
-  managesieve_logout_format = bytes ( in=%i : out=%o )
-}
-EOF
+#cat > /etc/dovecot/conf.d/20-managesieve.conf <<EOF
+#service managesieve-login {
+ # inet_listener sieve {
+  #  port = 4190
+ # }
+#}
+#service managesieve {
+ # process_limit = 1024
+#}
+#protocol sieve {
+ # managesieve_logout_format = bytes ( in=%i : out=%o )
+#}
+#EOF
 
 
 
