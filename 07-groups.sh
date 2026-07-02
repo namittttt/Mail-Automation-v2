@@ -94,7 +94,7 @@ if [ -n "$EXISTING" ]; then
             echo "member: $m"
         done
     } > "$LDIF_FILE"
-    ldapmodify -x -D "$ADMINDN" -w "$LDAPPASS" -f "$LDIF_FILE"
+    ldapmodify -x \ -D \ "$ADMINDN" -w \ "$LDAPPASS" -f \ "$LDIF_FILE"
 else
     echo
     echo "Creating LDAP group entry..."
@@ -110,7 +110,7 @@ else
             echo "member: $m"
         done
     } > "$LDIF_FILE"
-    ldapadd -x -D "$ADMINDN" -w "$LDAPPASS" -f "$LDIF_FILE"
+    ldapadd \ -x \ -D \ "$ADMINDN" -w \ "$LDAPPASS" -f \ "$LDIF_FILE"
 fi
 
 rm -f "$LDIF_FILE"
