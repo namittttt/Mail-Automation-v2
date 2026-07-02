@@ -67,18 +67,13 @@ objectClass: person
 objectClass: organizationalPerson
 objectClass: inetOrgPerson
 objectClass: posixAccount
-
 cn: $FIRSTNAME $LASTNAME
 sn: $LASTNAME
-
 uid: $USERNAME
 mail: $EMAIL
-
 uidNumber: $UIDNUMBER
 gidNumber: 5000
-
 homeDirectory: $MAILDIR
-
 userPassword: $HASHED_PASSWORD
 EOF
 

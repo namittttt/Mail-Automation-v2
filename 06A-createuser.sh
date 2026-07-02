@@ -22,11 +22,11 @@ EMAIL="${USERNAME}@${DOMAIN}"
 echo
 echo "Checking if user already exists..."
 
-EXISTING=$(ldapsearch 
--x 
--LLL 
--D "$ADMINDN" 
--w "$LDAPPASS" 
+EXISTING=$(ldapsearch \              
+-x \ 
+-LLL \ 
+-D "$ADMINDN" \ 
+-w "$LDAPPASS" \
 -b "ou=$USER_OU,$BASEDN" 
 "(uid=$USERNAME)" dn)
 
@@ -39,11 +39,11 @@ fi
 echo
 echo "Finding next UID Number..."
 
-LAST_UID=$(ldapsearch 
--x 
--LLL 
--D "$ADMINDN" 
--w "$LDAPPASS" 
+LAST_UID=$(ldapsearch \
+-x \
+-LLL \ 
+-D "$ADMINDN" \
+-w "$LDAPPASS" \
 -b "ou=$USER_OU,$BASEDN" 
 "(uid=*)" uidNumber 
 | awk '/uidNumber:/ {print $2}' 
@@ -97,10 +97,10 @@ fi
 echo
 echo "Creating LDAP User..."
 
-ldapadd 
--x 
--D "$ADMINDN" 
--w "$LDAPPASS" 
+ldapadd \
+-x \
+-D "$ADMINDN" \
+-w "$LDAPPASS" \
 -f "$LDIF_FILE"
 
 echo
@@ -125,12 +125,12 @@ ls -ld "$MAILDIR/Maildir"
 echo
 echo "Verifying LDAP User..."
 
-ldapsearch 
--x 
--LLL 
--D "$ADMINDN" 
--w "$LDAPPASS" 
--b "ou=$USER_OU,$BASEDN" 
+ldapsearch \
+-x \
+-LLL \
+-D "$ADMINDN" \
+-w "$LDAPPASS" \
+-b "ou=$USER_OU,$BASEDN" \
 "(uid=$USERNAME)" 
 uid mail uidNumber gidNumber homeDirectory
 
