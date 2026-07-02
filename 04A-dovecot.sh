@@ -188,32 +188,33 @@ mkdir -p /etc/dovecot/sieve/global
 
 cat > /etc/dovecot/conf.d/90-sieve.conf <<EOF
 # Enable modern Pigeonhole plugins globally
-sieve_plugins {
-  sieve_imapsieve = yes
-  sieve_extprograms = yes
-}
+sudo cat > /etc/dovecot/conf.d/90-sieve.conf <<'EOF'
+# Enable sieve plugin
+mail_plugins = $mail_plugins sieve
 
-# Explicitly white-list required Sieve extensions
-sieve_extensions {
-  vnd.dovecot.pipe = yes
-  vnd.dovecot.environment = yes
-}
+# User's personal sieve scripts directory
+sieve = file:~/sieve;active=~/.dovecot.sieve
 
-# Directory for external execution scripts (rspamc wrapper)
+# Global scripts: run for every user (before personal scripts)
+sieve_global = /etc/dovecot/sieve/global/
+
+# ManageSieve: lets email clients manage sieve scripts remotely
+sieve_plugins = sieve_imapsieve sieve_extprograms
+
+# imapsieve: fire sieve scripts when IMAP folder events happen
+# Detect "user moved message to Junk" → train rspamd
+imapsieve_mailbox1_name = Junk
+imapsieve_mailbox1_causes = COPY FLAG
+imapsieve_mailbox1_before = file:/etc/dovecot/sieve/global/learn-spam.sieve
+
+imapsieve_mailbox2_name = INBOX
+imapsieve_mailbox2_from = Junk
+imapsieve_mailbox2_causes = COPY
+imapsieve_mailbox2_before = file:/etc/dovecot/sieve/global/learn-ham.sieve
+
+# Allow sieve to run external programs (rspamc)
 sieve_pipe_bin_dir = /usr/bin
-
-# User personal Sieve setup block
-sieve_script personal {
-  driver = file
-  path = ~/sieve
-  active_path = ~/.dovecot.sieve
-}
-
-# Server-wide shared scripts location
-sieve_script global {
-  sieve_script_type = global
-  path = /etc/dovecot/sieve/global/
-}
+sieve_global_extensions = +vnd.dovecot.pipe +vnd.dovecot.environment
 EOF
 
 # ManageSieve service (port 4190)
