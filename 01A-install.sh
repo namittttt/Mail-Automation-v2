@@ -22,8 +22,7 @@ apt install -y \
     gnupg2 \
     lsb-release \
     ca-certificates \
-    apt-transport-https \
-    software-properties-common
+    apt-transport-https
 
 echo
 echo "[3/9] Adding Rspamd Official Repository..."
