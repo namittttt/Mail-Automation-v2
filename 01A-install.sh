@@ -51,7 +51,6 @@ apt install -y \
     dovecot-ldap \
     dovecot-sieve \
     dovecot-managesieved \
-    dovecot-imapsieve \
     slapd \
     ldap-utils \
     apache2 \
