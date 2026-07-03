@@ -94,25 +94,20 @@ echo
 echo "[4/6] Configuring Apache virtual host..."
 cat > /etc/apache2/sites-available/roundcube.conf <<EOF
 <VirtualHost *:80>
-    ServerName $MAILHOST
+
+    ServerName mail.namit.com
+
     DocumentRoot /usr/share/roundcube
 
-    # Redirect all HTTP to HTTPS
-    # Uncomment after Let's Encrypt cert is installed:
-    # Redirect permanent / https://$MAILHOST/
-
     <Directory /usr/share/roundcube>
-        Options -Indexes +FollowSymLinks
+        Options FollowSymLinks
         AllowOverride All
         Require all granted
-        # Block access to sensitive directories
-        <DirectoryMatch "(config|temp|logs|bin|SQL|installer)">
-            Require all denied
-        </DirectoryMatch>
     </Directory>
 
-    ErrorLog  \${APACHE_LOG_DIR}/roundcube-error.log
-    CustomLog \${APACHE_LOG_DIR}/roundcube-access.log combined
+    ErrorLog ${APACHE_LOG_DIR}/roundcube-error.log
+    CustomLog ${APACHE_LOG_DIR}/roundcube-access.log combined
+
 </VirtualHost>
 
 # HTTPS vhost — uncomment after running certbot
