@@ -37,11 +37,11 @@ include('/etc/roundcube/debian-db-roundcube.php');
 
 // IMAP: connect to Dovecot on port 143 with STARTTLS
 // In production replace with ssl://localhost:993 after cert setup
-\$config['imap_host'] = 'tls://localhost:143';
+\$config['imap_host'] = 'tls://mail.namit.com:143';
 
 // SMTP: connect to Postfix submission port 587 with STARTTLS
 // Port 587 requires auth + TLS — correct for outbound mail
-\$config['smtp_host'] = 'tls://localhost:587';
+\$config['smtp_host'] = 'tls://mail.namit.com:587';
 \$config['smtp_port'] = 587;
 
 // Use the logged-in user's credentials for SMTP submission
