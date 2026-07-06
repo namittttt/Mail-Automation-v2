@@ -58,7 +58,7 @@ include('/etc/roundcube/debian-db-roundcube.php');
 
 \$config['smtp_user'] = '%u';
 \$config['smtp_pass'] = '%p';
-$config['smtp_helo_host'] = 'mail.namit.com';
+\$config['smtp_helo_host'] = 'mail.namit.com';
 
 \$config['smtp_conn_options'] = [
     'ssl' => [
