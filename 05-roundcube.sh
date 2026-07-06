@@ -53,7 +53,7 @@ include('/etc/roundcube/debian-db-roundcube.php');
  * Use hostname only. smtp_port tells Roundcube which port to use.
  */
 
-\$config['smtp_host'] = 'mail.namit.com';
+\$config['smtp_host'] = 'tls://mail.namit.com';
 \$config['smtp_port'] = 587;
 
 \$config['smtp_user'] = '%u';
