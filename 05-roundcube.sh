@@ -25,20 +25,17 @@ DES_KEY=$(pwgen -s 24 1)
 
 echo
 echo "[2/6] Writing Roundcube configuration..."
-cat > /etc/roundcube/config.inc.php <<EOF
+cat > /etc/roundcube/config.inc.php <<'PHPEOF'
 <?php
 
-\$config = [];
+$config = [];
 
 /* ---------------- Database ---------------- */
-
 include('/etc/roundcube/debian-db-roundcube.php');
 
 /* ---------------- IMAP ---------------- */
-
-\$config['imap_host'] = 'tls://mail.namit.com:143';
-
-\$config['imap_conn_options'] = [
+$config['imap_host'] = 'tls://mail.namit.com:143';
+$config['imap_conn_options'] = [
     'ssl' => [
         'verify_peer'       => false,
         'verify_peer_name'  => false,
@@ -47,60 +44,44 @@ include('/etc/roundcube/debian-db-roundcube.php');
 ];
 
 /* ---------------- SMTP ---------------- */
-
-/*
- * Port 587 = Submission (STARTTLS)
- * Use hostname only. smtp_port tells Roundcube which port to use.
- */
-
-\$config['smtp_host'] = 'tls://mail.namit.com';
-\$config['smtp_port'] = 587;
-
-\$config['smtp_user'] = '%u';
-\$config['smtp_pass'] = '%p';
-\$config['smtp_helo_host'] = 'mail.namit.com';
-
-\$config['smtp_conn_options'] = [
+// Port 587 = Submission (STARTTLS)
+$config['smtp_host'] = 'tls://mail.namit.com';
+$config['smtp_port'] = 587;
+$config['smtp_user'] = '%u';
+$config['smtp_pass'] = '%p';
+$config['smtp_helo_host'] = 'mail.namit.com';
+$config['smtp_conn_options'] = [
     'ssl' => [
         'verify_peer'       => false,
         'verify_peer_name'  => false,
         'allow_self_signed' => true,
     ],
 ];
-
-\$config['smtp_timeout'] = 30;
+$config['smtp_timeout'] = 30;
 
 /* ---------------- UI ---------------- */
-
-\$config['product_name'] = 'Mail';
-\$config['des_key'] = '${DES_KEY}';
-
-\$config['skin'] = 'elastic';
-\$config['language'] = 'en_US';
-
-\$config['enable_spellcheck'] = false;
-\$config['quota_zero_as_unlimited'] = false;
+$config['product_name'] = 'Mail';
+$config['des_key'] = 'k3C5aCI1O9JKLrXMB13G5eN5';
+$config['skin'] = 'elastic';
+$config['language'] = 'en_US';
+$config['enable_spellcheck'] = false;
+$config['quota_zero_as_unlimited'] = false;
 
 /* ---------------- Plugins ---------------- */
-
-/*
- * Disable Sieve plugins until Dovecot IMAPSieve issue is fixed.
- */
-
-\$config['plugins'] = [
+// Sieve/managesieve disabled until Dovecot IMAPSieve issue is resolved
+$config['plugins'] = [
     'archive',
     'zipdownload',
 ];
 
 /* ---------------- Logging ---------------- */
+$config['log_driver'] = 'file';
+$config['debug_level'] = 4;
+$config['smtp_debug'] = true;
+$config['smtp_log'] = true;
+PHPEOF
 
-\$config['log_driver'] = 'file';
-\$config['debug_level'] = 4;
-\$config['smtp_debug'] = true;
-\$config['smtp_log'] = true;
-
-EOF
-
+php -l /etc/roundcube/config.inc.php
 
 echo
 echo "[3/6] Importing Roundcube database..."
