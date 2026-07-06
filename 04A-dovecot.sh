@@ -57,7 +57,7 @@ passdb ldap {
     userdb_home       = %{ldap:homeDirectory}
     userdb_uid        = %{ldap:uidNumber}
     userdb_gid        = %{ldap:gidNumber}
-    userdb_quota_rule = *:bytes=%{ldap:mailQuota}
+   
   }
 }
 
@@ -68,7 +68,7 @@ userdb ldap {
     home        = %{ldap:homeDirectory}
     uid         = %{ldap:uidNumber}
     gid         = %{ldap:gidNumber}
-    quota_rule = *:bytes=%{ldap:mailQuota}
+   
   }
 }
 EOF
