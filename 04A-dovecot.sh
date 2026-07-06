@@ -3,7 +3,7 @@ set -e
 source /opt/mailserver/mailserver.conf
 
 echo "========================================"
-echo " Dovecot Configuration (v2.4+ Modernized)"
+echo " Dovecot Configuration"
 echo "========================================"
 
 VMAIL_UID=5000
@@ -57,7 +57,6 @@ passdb ldap {
     userdb_home       = %{ldap:homeDirectory}
     userdb_uid        = %{ldap:uidNumber}
     userdb_gid        = %{ldap:gidNumber}
-   
   }
 }
 
@@ -68,11 +67,9 @@ userdb ldap {
     home        = %{ldap:homeDirectory}
     uid         = %{ldap:uidNumber}
     gid         = %{ldap:gidNumber}
-   
   }
 }
 EOF
-
 
 # ─────────────────────────────────────────────
 # [5/11] Auth mechanisms + auth config
@@ -87,72 +84,121 @@ EOF
 # ─────────────────────────────────────────────
 # [6/11] Mail storage (Maildir layout)
 # ─────────────────────────────────────────────
+# BUG 1 FIX: "quota" removed from mail_plugins because the quota plugin
+# config block (step 7) is disabled. Loading the plugin with no matching
+# config block is what threw: fatal: plugin '$mail_plugins' not found
 echo "[6/11] Configuring mail storage..."
 cat > /etc/dovecot/conf.d/10-mail.conf <<EOF
 mail_driver           = maildir
 mail_path             = ~/Maildir
 mail_privileged_group = mail
-mail_plugins          = \$mail_plugins quota
 EOF
 
-# [7/11] Quota (Flat Direct Configuration Elements)
+# ─────────────────────────────────────────────
+# [7/11] Quota — disabled
+# ─────────────────────────────────────────────
+# Left intentionally disabled. If you want quotas back later, re-enable this
+# whole block AND re-add "quota" to mail_plugins in step 6 above — they must
+# always be turned on/off together.
+#
+# echo "[7/11] Configuring quota..."
+# cat >> /etc/dovecot/conf.d/10-mail.conf <<'EOF'
+# mail_plugins = $mail_plugins quota
+#
+# quota "User quota" {
+#   driver = count
+# }
+#
+# quota_warning "90percent" {
+#   bytes = 90%
+#   command = "quota-warning 90 %u"
+# }
+#
+# quota_warning "100percent" {
+#   bytes = 100%
+#   command = "quota-warning 100 %u"
+# }
+#
+# service quota-status {
+#   executable = quota-status -p postfix
+#   inet_listener {
+#     port = 12340
+#   }
+# }
+#
+# service quota-warning {
+#   executable = script /usr/local/bin/quota-warning.sh
+#   user = vmail
+#   unix_listener quota-warning {
+#     user = vmail
+#     mode = 0600
+#   }
+# }
+# EOF
+#
+# cat > /usr/local/bin/quota-warning.sh <<'SCRIPT'
+# #!/bin/bash
+# source /opt/mailserver/mailserver.conf
+# PERCENT=$1
+# USER=$2
+# printf "From: postmaster@${DOMAIN}\nTo: ${USER}\nSubject: Mailbox quota warning: ${PERCENT}%% used\n\nYour mailbox is ${PERCENT}%% full.\nPlease delete old messages or contact your administrator.\n" \
+#     | sendmail -f "postmaster@${DOMAIN}" "${USER}"
+# SCRIPT
+# chmod +x /usr/local/bin/quota-warning.sh
+#
+# postconf -e "smtpd_end_of_data_restrictions = check_policy_service inet:localhost:12340"
 
-#echo "[7/11] Configuring quota..."
-# Enable quota plugin
-#mail_plugins = quota
+# ─────────────────────────────────────────────
+# [8/11] Sieve — global plugin config (BUG 3 FIX)
+# ─────────────────────────────────────────────
+# This file was missing entirely. 99-lmtp.conf loads the sieve plugin, so
+# without this config block Dovecot has nothing to configure it with —
+# same class of error as Bug 1.
+echo "[8/11] Configuring Sieve..."
+cat > /etc/dovecot/conf.d/90-sieve.conf <<'EOF'
+plugin {
+  sieve = file:~/sieve;active=~/.dovecot.sieve
+  sieve_global = /etc/dovecot/sieve/global/
+  sieve_plugins = sieve_imapsieve sieve_extprograms
 
-# Quota configuration
-#quota "User quota" {
- # driver = count
-#}
+  imapsieve_mailbox1_name   = Junk
+  imapsieve_mailbox1_causes = COPY FLAG
+  imapsieve_mailbox1_before = file:/etc/dovecot/sieve/global/learn-spam.sieve
 
-# Quota exceeded warning at 90%
-#quota_warning "90percent" {
- # bytes = 90%
- # command = "quota-warning 90 %u"
-#}
+  imapsieve_mailbox2_name   = INBOX
+  imapsieve_mailbox2_from   = Junk
+  imapsieve_mailbox2_causes = COPY
+  imapsieve_mailbox2_before = file:/etc/dovecot/sieve/global/learn-ham.sieve
 
-# Quota exceeded warning at 100%
-#quota_warning "100percent" {
- # bytes = 100%
-  #command = "quota-warning 100 %u"
-#}
+  sieve_pipe_bin_dir = /usr/bin
+  sieve_global_extensions = +vnd.dovecot.pipe +vnd.dovecot.environment
+}
+EOF
 
-# quota-status service: Postfix queries this before accepting a message
-#service quota-status {
- # executable = quota-status -p postfix
- # inet_listener {
-  #  port = 12340
- # }
-#}
+cat > /etc/dovecot/conf.d/20-managesieve.conf <<'EOF'
+service managesieve-login {
+  inet_listener sieve {
+    port = 4190
+  }
+}
+service managesieve {
+  process_limit = 1024
+}
+EOF
 
-# Warning script — sends an email to the user when quota is near full
-#service quota-warning {
- # executable = script /usr/local/bin/quota-warning.sh
- # user = vmail
- # unix_listener quota-warning {
-  #  user = vmail
-  #  mode = 0600
-#  }
-#}
-#EOF
+# ─────────────────────────────────────────────
+# [8.5/11] Sieve directories (BUG 2 FIX)
+# ─────────────────────────────────────────────
+# mkdir was missing, so writing learn-spam.sieve / learn-ham.sieve below
+# would have failed (No such file or directory).
+echo "[8.5/11] Creating sieve directories..."
+mkdir -p /etc/dovecot/sieve/global
+chown root:vmail /etc/dovecot/sieve/global
+chmod 750 /etc/dovecot/sieve/global
 
-#cat > /usr/local/bin/quota-warning.sh <<SCRIPT
-#!/bin/bash
-#source /opt/mailserver/mailserver.conf
-#PERCENT=\$1
-#USER=\$2
-#printf "From: postmaster@\${DOMAIN}\nTo: \${USER}\nSubject: Mailbox quota warning: \${PERCENT}%% used\n\nYour mailbox is \${PERCENT}%% full.\nPlease delete old messages or contact your administrator.\n" \
- #   | sendmail -f "postmaster@\${DOMAIN}" "\${USER}"
-#SCRIPT
-#chmod +x /usr/local/bin/quota-warning.sh
-
-# Tell Postfix to check quota before delivery
-#postconf -e "smtpd_end_of_data_restrictions = check_policy_service inet:localhost:12340"
-
-
+# ─────────────────────────────────────────────
 # [9/11] Spam reporting via imapsieve
-
+# ─────────────────────────────────────────────
 echo "[9/11] Creating spam reporting sieve scripts..."
 
 cat > /etc/dovecot/sieve/global/learn-spam.sieve <<'EOF'
@@ -218,34 +264,35 @@ protocol lmtp {
 }
 EOF
 
-
+# ─────────────────────────────────────────────
 # [11/11] Mailboxes, logging, restart
+# ─────────────────────────────────────────────
 echo "[11/11] Final config, logging, restart..."
 
 cat > /etc/dovecot/conf.d/15-mailboxes.conf <<'EOF'
 namespace inbox {
   inbox = yes
-  
+
   mailbox Drafts {
     special_use = \Drafts
     auto = subscribe
   }
-  
+
   mailbox Junk {
     special_use = \Junk
     auto = subscribe
   }
-  
+
   mailbox Trash {
     special_use = \Trash
     auto = subscribe
   }
-  
+
   mailbox Sent {
     special_use = \Sent
     auto = subscribe
   }
-  
+
   mailbox "Sent Messages" {
     special_use = \Sent
   }
