@@ -48,8 +48,12 @@ ldap_auth_dn_password = $LDAPPASS
 ldap_base            = $BASEDN
 
 # passdb: verify password
+# NOTE: %{user} = full login (venkatesh@namit.com), but LDAP stores just
+# "uid=venkatesh" (local part only) — this mismatch is why auth was failing
+# ("ldap: unknown user" in the debug log, filter never matched anything).
+# %{user | username} strips the @domain part to match your directory.
 passdb ldap {
-  ldap_filter = (&(objectClass=posixAccount)(uid=%{user}))
+  ldap_filter = (&(objectClass=posixAccount)(uid=%{user | username}))
   ldap_bind   = no
   fields {
     user              = %{ldap:uid}
@@ -62,7 +66,7 @@ passdb ldap {
 
 # userdb: get mailbox location and uid/gid for mail delivery
 userdb ldap {
-  filter = (&(objectClass=posixAccount)(uid=%{user}))
+  filter = (&(objectClass=posixAccount)(uid=%{user | username}))
   fields {
     home        = %{ldap:homeDirectory}
     uid         = %{ldap:uidNumber}
