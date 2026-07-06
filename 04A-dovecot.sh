@@ -331,22 +331,22 @@ namespace inbox {
 
   mailbox Drafts {
     special_use = \Drafts
-    auto = subscribe
+    auto = create
   }
 
   mailbox Junk {
     special_use = \Junk
-    auto = subscribe
+    auto = create
   }
 
   mailbox Trash {
     special_use = \Trash
-    auto = subscribe
+    auto = create
   }
 
   mailbox Sent {
     special_use = \Sent
-    auto = subscribe
+    auto = create
   }
 
   mailbox "Sent Messages" {
