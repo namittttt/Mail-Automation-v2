@@ -3,7 +3,7 @@ set -e
 source /opt/mailserver/mailserver.conf
 
 echo "========================================"
-echo " Dovecot Configuration (v2.4+ Modernized)"
+echo " Dovecot Configuration"
 echo "========================================"
 
 VMAIL_UID=5000
@@ -103,16 +103,7 @@ EOF
 #
 # echo "[7/11] Configuring quota..."
 # cat >> /etc/dovecot/conf.d/10-mail.conf <<'EOF'
-# protocol imap {
-#   mail_plugins {
-#     quota = yes
-#   }
-# }
-# protocol lmtp {
-#   mail_plugins {
-#     quota = yes
-#   }
-# }
+# mail_plugins = $mail_plugins quota
 #
 # quota "User quota" {
 #   driver = count
@@ -158,67 +149,30 @@ EOF
 # postconf -e "smtpd_end_of_data_restrictions = check_policy_service inet:localhost:12340"
 
 # ─────────────────────────────────────────────
-# [8/11] Sieve — global plugin config (BUG 3 FIX, v2.4 syntax)
+# [8/11] Sieve — global plugin config (BUG 3 FIX)
 # ─────────────────────────────────────────────
-# NOTE: Dovecot 2.4 removed the "plugin { }" block entirely — this is why
-# you got: doveconf: Fatal: ... line 1: Unknown section name: plugin
-# The old flat imapsieve_mailboxN_* settings are also gone. In 2.4 syntax,
-# script storages are named "sieve_script" blocks, and admin (imapsieve)
-# scripts are nested inside "mailbox" / "imapsieve_from" filter blocks.
-# Reference: https://doc.dovecot.org/2.4.1/core/plugins/sieve.html
-#            https://doc.dovecot.org/2.4.1/core/plugins/imap_sieve.html
+# This file was missing entirely. 99-lmtp.conf loads the sieve plugin, so
+# without this config block Dovecot has nothing to configure it with —
+# same class of error as Bug 1.
 echo "[8/11] Configuring Sieve..."
 cat > /etc/dovecot/conf.d/90-sieve.conf <<'EOF'
-# Personal (per-user) Sieve script storage
-sieve_script personal {
-  driver      = file
-  path        = ~/sieve
-  active_path = ~/.dovecot.sieve
-}
+plugin {
+  sieve = file:~/sieve;active=~/.dovecot.sieve
+  sieve_global = /etc/dovecot/sieve/global/
+  sieve_plugins = sieve_imapsieve sieve_extprograms
 
-# IMAPSieve admin script: message copied/flagged INTO Junk -> train as spam
-mailbox Junk {
-  sieve_script learn_spam {
-    type = before
-    cause = "copy flag"
-    path = /etc/dovecot/sieve/global/learn-spam.sieve
-  }
-}
+  imapsieve_mailbox1_name   = Junk
+  imapsieve_mailbox1_causes = COPY FLAG
+  imapsieve_mailbox1_before = file:/etc/dovecot/sieve/global/learn-spam.sieve
 
-# IMAPSieve admin script: message copied FROM Junk INTO INBOX -> train as ham
-mailbox INBOX {
-  imapsieve_from Junk {
-    sieve_script learn_ham {
-      type = before
-      cause = copy
-      path = /etc/dovecot/sieve/global/learn-ham.sieve
-    }
-  }
-}
+  imapsieve_mailbox2_name   = INBOX
+  imapsieve_mailbox2_from   = Junk
+  imapsieve_mailbox2_causes = COPY
+  imapsieve_mailbox2_before = file:/etc/dovecot/sieve/global/learn-ham.sieve
 
-# Enable the IMAP-side plugin so the above mailbox/imapsieve_from hooks fire
-protocol imap {
-  mail_plugins {
-    imap_sieve = yes
-  }
+  sieve_pipe_bin_dir = /usr/bin
+  sieve_global_extensions = +vnd.dovecot.pipe +vnd.dovecot.environment
 }
-
-# Sieve interpreter plugins (registers the imapsieve + extprograms extensions)
-sieve_plugins {
-  sieve_imapsieve   = yes
-  sieve_extprograms = yes
-}
-
-# vnd.dovecot.pipe / vnd.dovecot.environment are used by learn-spam.sieve and
-# learn-ham.sieve (the "pipe :copy rspamc" calls) — restricted to global
-# (admin) scripts only, not exposed to users' personal scripts
-sieve_global_extensions {
-  vnd.dovecot.pipe        = yes
-  vnd.dovecot.environment = yes
-}
-
-# Directory containing binaries usable by the sieve "pipe" command (rspamc)
-sieve_pipe_bin_dir = /usr/bin
 EOF
 
 cat > /etc/dovecot/conf.d/20-managesieve.conf <<'EOF'
@@ -296,10 +250,6 @@ service auth-worker {
 }
 EOF
 
-# NOTE: mail_plugins is a block in Dovecot 2.4 ("mail_plugins { name = yes }"),
-# not the old "mail_plugins = $mail_plugins name" string-append syntax. The
-# old form is what threw the "Unknown section name: plugin" class of errors
-# once doveconf reached this file too.
 cat > /etc/dovecot/conf.d/99-lmtp.conf <<EOF
 service lmtp {
   unix_listener /var/spool/postfix/private/dovecot-lmtp {
@@ -310,9 +260,7 @@ service lmtp {
 }
 
 protocol lmtp {
-  mail_plugins {
-    sieve = yes
-  }
+  mail_plugins = \$mail_plugins sieve
 }
 EOF
 
