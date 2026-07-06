@@ -121,7 +121,6 @@ fi
 
 postconf -e "smtpd_tls_cert_file = /etc/ssl/mail/mail.crt"
 postconf -e "smtpd_tls_key_file  = /etc/ssl/mail/mail.key"
-postconf -e "smtpd_use_tls       = yes"
 postconf -e "smtpd_tls_security_level = may"
 postconf -e "smtpd_tls_auth_only = yes"
 postconf -e "smtp_tls_security_level = may"
