@@ -25,11 +25,12 @@ DES_KEY=$(pwgen -s 24 1)
 
 echo
 echo "[2/6] Writing Roundcube configuration..."
-
 cat > /etc/roundcube/config.inc.php <<EOF
 <?php
 
 \$config = [];
+
+/* ---------------- Database ---------------- */
 
 include('/etc/roundcube/debian-db-roundcube.php');
 
@@ -47,11 +48,20 @@ include('/etc/roundcube/debian-db-roundcube.php');
 
 /* ---------------- SMTP ---------------- */
 
-\$config['smtp_host'] = 'tls://mail.namit.com';
+/*
+ * Port 587 = Submission (STARTTLS)
+ * Use hostname only. smtp_port tells Roundcube which port to use.
+ */
+
+\$config['smtp_host'] = 'mail.namit.com';
 \$config['smtp_port'] = 587;
 
 \$config['smtp_user'] = '%u';
 \$config['smtp_pass'] = '%p';
+
+/*
+ * Force STARTTLS
+ */
 
 \$config['smtp_conn_options'] = [
     'ssl' => [
@@ -61,21 +71,28 @@ include('/etc/roundcube/debian-db-roundcube.php');
     ],
 ];
 
+\$config['smtp_timeout'] = 30;
+
 /* ---------------- UI ---------------- */
 
 \$config['product_name'] = 'Mail';
 \$config['des_key'] = '${DES_KEY}';
+
 \$config['skin'] = 'elastic';
 \$config['language'] = 'en_US';
-\$config['enable_spellcheck'] = false;
 
+\$config['enable_spellcheck'] = false;
 \$config['quota_zero_as_unlimited'] = false;
 
 /* ---------------- Plugins ---------------- */
 
+/*
+ * Disable Sieve plugins until Dovecot IMAPSieve issue is fixed.
+ */
+
 \$config['plugins'] = [
     'archive',
-    'zipdownload'
+    'zipdownload',
 ];
 
 /* ---------------- Logging ---------------- */
@@ -86,6 +103,7 @@ include('/etc/roundcube/debian-db-roundcube.php');
 \$config['smtp_log'] = true;
 
 EOF
+
 
 echo
 echo "[3/6] Importing Roundcube database..."
