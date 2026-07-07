@@ -68,9 +68,16 @@ passdb ldap {
 userdb ldap {
   filter = (&(objectClass=posixAccount)(uid=%{user | username}))
   fields {
-    home        = %{ldap:homeDirectory}
-    uid         = %{ldap:uidNumber}
-    gid         = %{ldap:gidNumber}
+    home = %{ldap:homeDirectory}
+    # Every virtual mail user runs as the SAME shared system account
+    # (vmail), not their individual LDAP uidNumber/gidNumber. Mixing
+    # per-user Linux identities with vmail-owned storage causes
+    # permission errors on every new folder/index file Dovecot creates
+    # (dotlock/index files need write access that group r-x won't give
+    # an arbitrary per-user uid). Static uid/gid = vmail avoids this
+    # entire class of bug.
+    uid = vmail
+    gid = vmail
   }
 }
 EOF
