@@ -361,7 +361,9 @@ namespace inbox {
   }
 }
 EOF
-
+mkdir -p /var/mail/vhosts/$DOMAIN
+chown -R vmail:vmail /var/mail/vhosts
+chmod 750 /var/mail/vhosts
 # Production logging format updates
 cat > /etc/dovecot/conf.d/99-logging.conf <<EOF
 log_path       = /var/log/dovecot.log
