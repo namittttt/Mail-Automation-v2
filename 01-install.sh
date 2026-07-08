@@ -1,123 +1,181 @@
 #!/bin/bash
 set -e
+
 echo "========================================"
 echo " Mail Server Installation"
 echo "========================================"
 
 if [ "$EUID" -ne 0 ]; then
-echo "Please run as root"
-exit 1
+    echo "Please run as root"
+    exit 1
 fi
 
 echo
-echo "[1/6] Updating Package Repository..."
+echo "[1/9] Updating Package Repository..."
+apt update
+
+echo
+echo "[2/9] Installing Core Dependencies..."
+export DEBIAN_FRONTEND=noninteractive
+apt install -y \
+    curl \
+    gnupg2 \
+    lsb-release \
+    ca-certificates \
+    apt-transport-https
+
+echo
+echo "[3/9] Adding Rspamd Official Repository..."
+curl -fsSL https://rspamd.com/apt-stable/gpg.key \
+    | gpg --dearmor \
+    | tee /usr/share/keyrings/rspamd.gpg > /dev/null
+
+echo "deb [signed-by=/usr/share/keyrings/rspamd.gpg] \
+https://rspamd.com/apt-stable/ $(lsb_release -cs) main" \
+    > /etc/apt/sources.list.d/rspamd.list
 
 apt update
 
 echo
-echo "[2/6] Installing Required Packages..."
-
-export DEBIAN_FRONTEND=noninteractive
-
+echo "[4/9] Installing Mail Server Packages..."
 apt install -y \
-postfix \
-postfix-ldap \
-dovecot-core \
-dovecot-imapd \
-dovecot-pop3d \
-dovecot-lmtpd \
-dovecot-ldap \
-dovecot-mysql \
-slapd \
-ldap-utils \
-apache2 \
-apache2-utils \
-roundcube \
-roundcube-core \
-roundcube-mysql \
-mariadb-server \
-mariadb-client \
-php \
-php-cli \
-php-common \
-php-ldap \
-php-mysql \
-#php-imap 
-php-mbstring \
-php-intl \
-php-xml \
-php-curl \
-php-zip \
-pwgen \
-mailutils \
-redis-server \
-clamav \
-clamav-daemon \
-fail2ban \
-telnet
+    postfix \
+    postfix-ldap \
+    dovecot-core \
+    dovecot-imapd \
+    dovecot-pop3d \
+    dovecot-lmtpd \
+    dovecot-ldap \
+    dovecot-sieve \
+    dovecot-managesieved \
+    slapd \
+    ldap-utils \
+    nginx \
+    roundcube \
+    roundcube-core \
+    roundcube-mysql \
+    mariadb-server \
+    mariadb-client \
+    php \
+    php-fpm \
+    php-cli \
+    php-common \
+    php-ldap \
+    php-mysql \
+    php-mbstring \
+    php-intl \
+    php-xml \
+    php-curl \
+    php-zip \
+    pwgen \
+    mailutils \
+    redis-server \
+    rspamd \
+    clamav \
+    clamav-daemon \
+    fail2ban \
+    telnet \
+    certbot \
+    python3-certbot-nginx \
+    python3-systemd \
+    openssl
 
 echo
-echo "[3/6] Enabling Services..."
-
+echo "[5/9] Enabling Services at Boot..."
 systemctl enable slapd
 systemctl enable mariadb
 systemctl enable postfix
-systemctl enable apache2
+systemctl enable nginx
+PHP_FPM_UNIT=$(systemctl list-unit-files | awk '/^php[0-9.]+-fpm\.service/ {print $1; exit}')
+systemctl enable "$PHP_FPM_UNIT"
 systemctl enable dovecot
-echo
-echo "[4/6] Starting Services..."
+systemctl enable redis-server
+systemctl enable rspamd
+systemctl enable fail2ban
 
+echo
+echo "[6/9] Starting Services..."
 systemctl restart slapd
 systemctl restart mariadb
 systemctl restart postfix
-systemctl restart apache2
+systemctl restart "$PHP_FPM_UNIT"
+systemctl restart nginx
 systemctl restart dovecot
-echo
-echo "[5/6] Creating Roundcube Database..."
+systemctl restart redis-server
 
-mysql -e "CREATE DATABASE IF NOT EXISTS roundcube;" || true
+echo
+echo "[7/9] Creating Roundcube Database..."
+RC_DB_PASS=$(pwgen 20 1)
 
 mysql <<EOF
-CREATE DATABASE IF NOT EXISTS roundcube;
-
-CREATE USER IF NOT EXISTS 'roundcube'@'localhost'
-IDENTIFIED BY 'Namit';
-
-GRANT ALL PRIVILEGES ON roundcube.* TO
-'roundcube'@'localhost';
-
+CREATE DATABASE IF NOT EXISTS roundcube CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'roundcube'@'localhost' IDENTIFIED BY '${RC_DB_PASS}';
+GRANT ALL PRIVILEGES ON roundcube.* TO 'roundcube'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 
+echo "RC_DB_PASS=${RC_DB_PASS}" > /opt/mailserver-install.tmp
+chmod 600 /opt/mailserver-install.tmp
+
 echo
-echo "[6/6] Verifying Services..."
+echo "[8/9] Creating vmail System User..."
+# IMPORTANT: every other script (03A-postfix.sh's virtual_uid_maps/
+# virtual_gid_maps, 04A-dovecot.sh's userdb, this file) assumes vmail
+# is uid/gid 5000. If ANYTHING on this box already created a "vmail"
+# group/user before this point (some other package, a leftover from a
+# previous install attempt, etc.), the guards below silently skip
+# creation and vmail ends up with whatever ID that other thing picked
+# — causing permission errors on every mailbox later that are very
+# hard to trace back to this. Verify after running:
+#   id vmail    -> must show uid=5000(vmail) gid=5000(vmail)
+# If it doesn't, fix it immediately (before creating any mail data):
+#   groupmod -g 5000 vmail && usermod -u 5000 -g 5000 vmail
+#   chown -R 5000:5000 /var/mail/vhosts
+if ! getent group vmail > /dev/null 2>&1; then
+    groupadd -g 5000 vmail
+fi
+if ! id vmail > /dev/null 2>&1; then
+    useradd -r -g vmail -u 5000 -d /var/mail/vhosts \
+        -s /usr/sbin/nologin vmail
+fi
+mkdir -p /var/mail/vhosts
+chown -R vmail:vmail /var/mail/vhosts
+chmod 750 /var/mail/vhosts
+# /var/mail itself (root:mail 0700 by default) blocks traversal for
+# every uid except root/mail-group — including vmail. Without +x here,
+# nothing can reach /var/mail/vhosts no matter how it's chmod'd.
+chmod 711 /var/mail
 
-echo -n "LDAP      : "
-systemctl is-active slapd
+echo
+echo "[9/9] Verifying Services..."
+echo -n "LDAP     : "; systemctl is-active slapd
+echo -n "MariaDB  : "; systemctl is-active mariadb
+echo -n "Postfix  : "; systemctl is-active postfix
+echo -n "Nginx    : "; systemctl is-active nginx
+echo -n "PHP-FPM  : "; systemctl is-active "$PHP_FPM_UNIT"
+echo -n "Dovecot  : "; systemctl is-active dovecot
+echo -n "Redis    : "; systemctl is-active redis-server
+echo -n "vmail id : "; id vmail
 
-echo -n "MariaDB   : "
-systemctl is-active mariadb
-
-echo -n "Postfix   : "
-systemctl is-active postfix
-
-echo -n "Apache2   : "
-systemctl is-active apache2
-
-echo -n "Dovexot   : "
-systemctl is-active dovecot
 echo
 echo "========================================"
 echo " Installation Complete"
 echo "========================================"
-
 echo
 echo "Installed Components:"
-echo " - OpenLDAP"
+echo " - OpenLDAP (slapd + ldap-utils)"
 echo " - MariaDB"
-echo " - Postfix"
-echo " - Dovecot"
-echo " - Roundcube"
-echo " - Apache2"
-echo " - PHP"
+echo " - Postfix + postfix-ldap"
+echo " - Dovecot (IMAP + LMTP + LDAP + Sieve + ManageSieve + imapsieve)"
+echo " - Roundcube webmail"
+echo " - Nginx + PHP-FPM"
+echo " - Redis"
+echo " - Rspamd "
+echo " - ClamAV"
+echo " - Fail2ban"
+echo " - Certbot (nginx plugin)"
+echo
+echo "Roundcube DB password saved to /opt/mailserver-install.tmp"
+echo "This file is read by 05-roundcube.sh and deleted after use."
+echo
 

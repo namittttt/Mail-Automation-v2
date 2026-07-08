@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 source /opt/mailserver/mailserver.conf
@@ -13,104 +12,168 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-echo
-echo "[1/8] Configuring Roundcube..."
+if [ -f /opt/mailserver-install.tmp ]; then
+    source /opt/mailserver-install.tmp
+else
+    echo "ERROR: Run 01-install.sh first."
+    exit 1
+fi
 
-cat > /etc/roundcube/config.inc.php <<EOF
+echo
+echo "[1/6] Generating DES key..."
+DES_KEY=$(pwgen -s 24 1)
+
+echo
+echo "[2/6] Writing Roundcube configuration..."
+cat > /etc/roundcube/config.inc.php <<PHPEOF
 <?php
 
 \$config = [];
 
-include('/etc/roundcube/debian-db.php');
+/* ---------------- Database ---------------- */
+include('/etc/roundcube/debian-db-roundcube.php');
 
-\$config['imap_host'] = 'localhost:143';
+/* ---------------- IMAP ---------------- */
+\$config['imap_host'] = 'tls://$MAILHOST:143';
+\$config['imap_conn_options'] = [
+    'ssl' => [
+        'verify_peer'       => false,
+        'verify_peer_name'  => false,
+        'allow_self_signed' => true,
+    ],
+];
 
-\$config['smtp_host'] = 'localhost:25';
-
+/* ---------------- SMTP ---------------- */
+// Port 587 = Submission (STARTTLS)
+\$config['smtp_host'] = 'tls://$MAILHOST';
+\$config['smtp_port'] = 587;
 \$config['smtp_user'] = '%u';
-
 \$config['smtp_pass'] = '%p';
+\$config['smtp_helo_host'] = '$MAILHOST';
+\$config['smtp_conn_options'] = [
+    'ssl' => [
+        'verify_peer'       => false,
+        'verify_peer_name'  => false,
+        'allow_self_signed' => true,
+    ],
+];
+\$config['smtp_timeout'] = 30;
 
-\$config['support_url'] = '';
-
-\$config['product_name'] = 'Namit Mail';
-
-\$config['des_key'] = 'voC5fbUK9IgBGAU148NC91ap';
-
-\$config['plugins'] = [];
-
+/* ---------------- UI ---------------- */
+\$config['product_name'] = 'Mail';
+\$config['des_key'] = '$DES_KEY';
 \$config['skin'] = 'elastic';
-
-\$config['enable_spellcheck'] = false;
-
 \$config['language'] = 'en_US';
-EOF
+\$config['enable_spellcheck'] = false;
+\$config['quota_zero_as_unlimited'] = false;
+
+/* ---------------- Plugins ---------------- */
+\$config['plugins'] = [
+    'archive',
+    'zipdownload',
+    'managesieve',
+    'markasjunk',
+];
+
+/* ---------------- Logging ---------------- */
+\$config['log_driver'] = 'file';
+\$config['debug_level'] = 4;
+\$config['smtp_debug'] = true;
+\$config['smtp_log'] = true;
+PHPEOF
+
+php -l /etc/roundcube/config.inc.php
 
 echo
-echo "[2/8] Importing Roundcube Database Schema..."
+echo "[3/6] Importing Roundcube database..."
 
-if [ -f /usr/share/roundcube/SQL/mysql.initial.sql ]; then
-    mysql -u root roundcube < /usr/share/roundcube/SQL/mysql.initial.sql 2>/dev/null || true
+if ! mysql roundcube -e "SHOW TABLES;" | grep -q users; then
+    mysql roundcube < /usr/share/roundcube/SQL/mysql.initial.sql
 fi
 
 echo
-echo "[3/8] Configuring Apache Virtual Host..."
+echo "[4/6] Configuring Nginx..."
 
-cat > /etc/apache2/sites-available/roundcube.conf <<EOF
-<VirtualHost *:80>
+# Find the actual php-fpm socket (versioned, e.g. php8.4-fpm.sock —
+# don't hardcode a PHP version here since it varies by Debian release).
+PHP_SOCK=$(find /run/php -name "php*-fpm.sock" 2>/dev/null | head -1)
+if [ -z "$PHP_SOCK" ]; then
+    echo "ERROR: no php-fpm socket found in /run/php/. Is php-fpm installed and running?"
+    exit 1
+fi
+echo "Using PHP-FPM socket: $PHP_SOCK"
 
-    ServerName $MAILHOST
+# The rspamd UI reverse-proxy location lives in a separate, optional
+# snippet (written by 10A-Rspamd.sh) so the two scripts don't fight
+# over the same file, and so this file works fine even if rspamd
+# hasn't been configured yet. Create an empty placeholder if missing.
+mkdir -p /etc/nginx/snippets
+if [ ! -f /etc/nginx/snippets/rspamd-proxy.conf ]; then
+    cat > /etc/nginx/snippets/rspamd-proxy.conf <<'EOF'
+# Populated by 10A-Rspamd.sh. Empty until that script runs.
+EOF
+fi
 
-    DocumentRoot /usr/share/roundcube
+cat > /etc/nginx/sites-available/roundcube.conf <<EOF
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $MAILHOST;
 
-    <Directory /usr/share/roundcube>
-        Options FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
+    root /usr/share/roundcube;
+    index index.php;
 
-    ErrorLog \${APACHE_LOG_DIR}/roundcube-error.log
-    CustomLog \${APACHE_LOG_DIR}/roundcube-access.log combined
+    access_log /var/log/nginx/roundcube-access.log;
+    error_log  /var/log/nginx/roundcube-error.log;
 
-</VirtualHost>
+    # Roundcube internals that should never be served directly
+    location ~ ^/(config|temp|logs|SQL|bin|installer)/ {
+        deny all;
+        return 404;
+    }
+    location ~ /\. {
+        deny all;
+        return 404;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:$PHP_SOCK;
+    }
+
+    include /etc/nginx/snippets/rspamd-proxy.conf;
+}
 EOF
 
-echo
-echo "[4/8] Enabling Apache Rewrite Module..."
-
-a2enmod rewrite >/dev/null 2>&1 || true
+ln -sf /etc/nginx/sites-available/roundcube.conf /etc/nginx/sites-enabled/roundcube.conf
+rm -f /etc/nginx/sites-enabled/default
 
 echo
-echo "[5/8] Enabling Roundcube Site..."
+echo "[5/6] Validating and enabling Nginx + PHP-FPM..."
 
-a2dissite 000-default.conf >/dev/null 2>&1 || true
-a2ensite roundcube.conf >/dev/null 2>&1 || true
+nginx -t
 
-echo
-echo "[6/8] Testing Apache Configuration..."
-
-apache2ctl configtest
+PHP_FPM_UNIT=$(systemctl list-unit-files | awk '/^php[0-9.]+-fpm\.service/ {print $1; exit}')
+systemctl enable "$PHP_FPM_UNIT"
+systemctl restart "$PHP_FPM_UNIT"
 
 echo
-echo "[7/8] Restarting Apache..."
+echo "[6/6] Restarting Nginx..."
 
-systemctl restart apache2
-systemctl enable apache2
+systemctl restart nginx
+systemctl enable nginx
 
-echo
-echo "[8/8] Validating Roundcube..."
-
-curl -I http://127.0.0.1 >/dev/null
-
-echo "Roundcube reachable"
+rm -f /opt/mailserver-install.tmp
 
 echo
 echo "========================================"
-echo " Roundcube Configuration Complete"
+echo " Roundcube Installed"
 echo "========================================"
-
 echo
-echo "Roundcube URL:"
-echo "http://$MAILHOST"
-echo "http://127.0.0.1"
-echo
+echo "URL  : http://$MAILHOST"
+echo "IMAP : tls://$MAILHOST:143"
+echo "SMTP : tls://$MAILHOST:587"
