@@ -142,7 +142,7 @@ systemctl enable fail2ban
 
 echo
 echo "[6/9] Starting Services..."
-systemctl restart slapd
+#systemctl restart slapd
 systemctl restart mariadb
 systemctl restart postfix
 systemctl restart "$PHP_FPM_UNIT"
