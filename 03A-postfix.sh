@@ -14,6 +14,7 @@ echo "========================================"
 # filter (mail=%s) — if nothing is returned, the message is
 # rejected with "User unknown in virtual mailbox table".
 echo "[1/9] Creating LDAP user lookup..."
+
 cat > /etc/postfix/ldap-users.cf <<EOF
 server_host     = 127.0.0.1
 search_base     = ou=$USER_OU,$BASEDN
@@ -33,6 +34,7 @@ chmod 600 /etc/postfix/ldap-users.cf
 # and 'member' attributes listing member DNs.
 # This replaces the old flat /etc/postfix/virtual file for groups.
 echo "[2/9] Creating LDAP group alias lookup..."
+
 cat > /etc/postfix/ldap-groups.cf <<EOF
 server_host          = 127.0.0.1
 search_base          = ou=$GROUP_OU,$BASEDN
@@ -58,6 +60,7 @@ chmod 600 /etc/postfix/ldap-groups.cf
 # The map returns 'bob'. The authenticated user is 'alice'.
 # They don't match → Postfix rejects with 553.
 echo "[3/9] Creating LDAP sender-login map..."
+
 cat > /etc/postfix/ldap-sender-login.cf <<EOF
 server_host     = 127.0.0.1
 search_base     = ou=$USER_OU,$BASEDN
