@@ -68,20 +68,20 @@ https://rspamd.com/apt-stable/ $(lsb_release -cs) main" \
 apt update
 
 echo
-echo "[3.5/9] Pre-seeding slapd (must happen BEFORE it's installed)..."
-debconf-set-selections <<EOF
-slapd slapd/password1 password $LDAPPASS
-slapd slapd/password2 password $LDAPPASS
-slapd slapd/internal/adminpw password $LDAPPASS
-slapd slapd/internal/generated_adminpw password $LDAPPASS
-slapd slapd/domain string $DOMAIN
-slapd shared/organization string $DOMAIN
-slapd slapd/backend select MDB
-slapd slapd/purge_database boolean true
-slapd slapd/move_old_database boolean true
-slapd slapd/allow_ldap_v2 boolean false
-slapd slapd/no_configuration boolean false
-EOF
+#echo "[3.5/9] Pre-seeding slapd (must happen BEFORE it's installed)..."
+#debconf-set-selections <<EOF
+#slapd slapd/password1 password $LDAPPASS
+#slapd slapd/password2 password $LDAPPASS
+#slapd slapd/internal/adminpw password $LDAPPASS
+#slapd slapd/internal/generated_adminpw password $LDAPPASS
+#slapd slapd/domain string $DOMAIN
+#slapd shared/organization string $DOMAIN
+#slapd slapd/backend select MDB
+#slapd slapd/purge_database boolean true
+#slapd slapd/move_old_database boolean true
+#slapd slapd/allow_ldap_v2 boolean false
+#slapd slapd/no_configuration boolean false
+#EOF
 
 echo
 echo "[4/9] Installing Mail Server Packages..."
@@ -142,7 +142,7 @@ systemctl enable fail2ban
 
 echo
 echo "[6/9] Starting Services..."
-#systemctl restart slapd
+systemctl restart slapd
 systemctl restart mariadb
 systemctl restart postfix
 systemctl restart "$PHP_FPM_UNIT"
