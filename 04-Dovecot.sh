@@ -2,7 +2,7 @@
 set -e
 source /opt/mailserver/mailserver.conf
 
-echo " Dovecot Configuration
+echo "Dovecot Configuration"
 
 VMAIL_UID=5000
 VMAIL_GID=5000
