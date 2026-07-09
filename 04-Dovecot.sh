@@ -2,12 +2,10 @@
 set -e
 source /opt/mailserver/mailserver.conf
 
-echo "========================================"
-echo " Dovecot Configuration (v2.4+ Modernized)"
-echo "========================================"
+echo " Dovecot Configuration
 
-#VMAIL_UID=5000
-#VMAIL_GID=5000
+VMAIL_UID=5000
+VMAIL_GID=5000
 
 # ─────────────────────────────────────────────
 # [1/11] Mail storage directory
@@ -101,9 +99,6 @@ EOF
 # ─────────────────────────────────────────────
 # [6/11] Mail storage (Maildir layout)
 # ─────────────────────────────────────────────
-# BUG 1 FIX: "quota" removed from mail_plugins because the quota plugin
-# config block (step 7) is disabled. Loading the plugin with no matching
-# config block is what threw: fatal: plugin '$mail_plugins' not found
 echo "[6/11] Configuring mail storage..."
 cat > /etc/dovecot/conf.d/10-mail.conf <<EOF
 mail_driver           = maildir
@@ -250,10 +245,8 @@ service managesieve {
 EOF
 
 # ─────────────────────────────────────────────
-# [8.5/11] Sieve directories (BUG 2 FIX)
+# [8.5/11] Sieve directories
 # ─────────────────────────────────────────────
-# mkdir was missing, so writing learn-spam.sieve / learn-ham.sieve below
-# would have failed (No such file or directory).
 echo "[8.5/11] Creating sieve directories..."
 mkdir -p /etc/dovecot/sieve/global
 chown root:vmail /etc/dovecot/sieve/global
@@ -313,10 +306,6 @@ service auth-worker {
 }
 EOF
 
-# NOTE: mail_plugins is a block in Dovecot 2.4 ("mail_plugins { name = yes }"),
-# not the old "mail_plugins = $mail_plugins name" string-append syntax. The
-# old form is what threw the "Unknown section name: plugin" class of errors
-# once doveconf reached this file too.
 cat > /etc/dovecot/conf.d/99-lmtp.conf <<EOF
 service lmtp {
   unix_listener /var/spool/postfix/private/dovecot-lmtp {
@@ -333,9 +322,7 @@ protocol lmtp {
 }
 EOF
 
-# ─────────────────────────────────────────────
 # [11/11] Mailboxes, logging, restart
-# ─────────────────────────────────────────────
 echo "[11/11] Final config, logging, restart..."
 
 cat > /etc/dovecot/conf.d/15-mailboxes.conf <<'EOF'
