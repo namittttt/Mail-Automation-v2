@@ -6,8 +6,8 @@ echo "========================================"
 echo " Dovecot Configuration (v2.4+ Modernized)"
 echo "========================================"
 
-VMAIL_UID=5000
-VMAIL_GID=5000
+#VMAIL_UID=5000
+#VMAIL_GID=5000
 
 # ─────────────────────────────────────────────
 # [1/11] Mail storage directory
