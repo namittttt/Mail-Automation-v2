@@ -233,7 +233,7 @@ sieve_global_extensions {
 sieve_pipe_bin_dir = /usr/bin
 EOF
 
-cat > /etc/dovecot/conf.d/20-managesieve.conf <<'EOF'
+cat > /etc/dovecot/conf.d/20-managesieve.conf <<EOF
 service managesieve-login {
   inet_listener sieve {
     port = 4190
@@ -257,7 +257,7 @@ chmod 750 /etc/dovecot/sieve/global
 # ─────────────────────────────────────────────
 echo "[9/11] Creating spam reporting sieve scripts..."
 
-cat > /etc/dovecot/sieve/global/learn-spam.sieve <<'EOF'
+cat > /etc/dovecot/sieve/global/learn-spam.sieve <<EOF
 require ["vnd.dovecot.pipe", "copy", "imapsieve", "environment", "variables"];
 
 if environment :matches "imap.email" "*" {
@@ -267,7 +267,7 @@ if environment :matches "imap.email" "*" {
 pipe :copy "rspamc" ["learn_spam"];
 EOF
 
-cat > /etc/dovecot/sieve/global/learn-ham.sieve <<'EOF'
+cat > /etc/dovecot/sieve/global/learn-ham.sieve <<EOF
 require ["vnd.dovecot.pipe", "copy", "imapsieve", "environment", "variables"];
 
 if environment :matches "imap.email" "*" {
@@ -325,7 +325,7 @@ EOF
 # [11/11] Mailboxes, logging, restart
 echo "[11/11] Final config, logging, restart..."
 
-cat > /etc/dovecot/conf.d/15-mailboxes.conf <<'EOF'
+cat > /etc/dovecot/conf.d/15-mailboxes.conf <<EOF
 namespace inbox {
   inbox = yes
 
