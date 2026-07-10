@@ -95,9 +95,6 @@ EOF
 # ─────────────────────────────────────────────
 # [6/11] Mail storage (Maildir layout)
 # ─────────────────────────────────────────────
-# BUG 1 FIX: "quota" removed from mail_plugins because the quota plugin
-# config block (step 7) is disabled. Loading the plugin with no matching
-# config block is what threw: fatal: plugin '$mail_plugins' not found
 echo "[6/11] Configuring mail storage..."
 cat > /etc/dovecot/conf.d/10-mail.conf <<EOF
 mail_driver           = maildir
@@ -108,10 +105,6 @@ EOF
 # ─────────────────────────────────────────────
 # [7/11] Quota — disabled
 # ─────────────────────────────────────────────
-# Left intentionally disabled. If you want quotas back later, re-enable this
-# whole block AND re-add "quota" to mail_plugins in step 6 above — they must
-# always be turned on/off together.
-#
 # echo "[7/11] Configuring quota..."
 # cat >> /etc/dovecot/conf.d/10-mail.conf <<'EOF'
 # protocol imap {
@@ -169,15 +162,8 @@ EOF
 # postconf -e "smtpd_end_of_data_restrictions = check_policy_service inet:localhost:12340"
 
 # ─────────────────────────────────────────────
-# [8/11] Sieve — global plugin config (BUG 3 FIX, v2.4 syntax)
+# [8/11] Sieve — global plugin config 
 # ─────────────────────────────────────────────
-# NOTE: Dovecot 2.4 removed the "plugin { }" block entirely — this is why
-# you got: doveconf: Fatal: ... line 1: Unknown section name: plugin
-# The old flat imapsieve_mailboxN_* settings are also gone. In 2.4 syntax,
-# script storages are named "sieve_script" blocks, and admin (imapsieve)
-# scripts are nested inside "mailbox" / "imapsieve_from" filter blocks.
-# Reference: https://doc.dovecot.org/2.4.1/core/plugins/sieve.html
-#            https://doc.dovecot.org/2.4.1/core/plugins/imap_sieve.html
 echo "[8/11] Configuring Sieve..."
 cat > /etc/dovecot/conf.d/90-sieve.conf <<'EOF'
 # Personal (per-user) Sieve script storage
@@ -244,7 +230,7 @@ service managesieve {
 EOF
 
 # ─────────────────────────────────────────────
-# [8.5/11] Sieve directories (BUG 2 FIX)
+# [8.5/11] Sieve directories 
 # ─────────────────────────────────────────────
 # mkdir was missing, so writing learn-spam.sieve / learn-ham.sieve below
 # would have failed (No such file or directory).
