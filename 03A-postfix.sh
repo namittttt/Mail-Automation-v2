@@ -187,25 +187,6 @@ postconf -e "milter_default_action = accept"
 #   - Relay is permitted for authenticated users
 echo "[9/9] Configuring submission port 587 in master.cf..."
 
-# Safely remove any existing submission block using Python
-# (sed range deletion is fragile and can eat other service blocks)
-python3 - <<'PYEOF'
-import re, sys
-with open('/etc/postfix/master.cf', 'r') as f:
-    content = f.read()
-# Remove the block starting with 'submission inet' up to (not including)
-# the next non-comment, non-continuation line
-cleaned = re.sub(
-    r'\n*^submission\s+inet.*?(?=\n[a-zA-Z#]|\Z)',
-    '',
-    content,
-    flags=re.MULTILINE | re.DOTALL
-)
-with open('/etc/postfix/master.cf', 'w') as f:
-    f.write(cleaned)
-print("master.cf cleaned.")
-PYEOF
-
 cat >> /etc/postfix/master.cf <<'EOF'
 
 # ── Submission port 587 ─────────────────────────────────────────────
