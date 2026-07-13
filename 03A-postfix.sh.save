@@ -35,42 +35,42 @@ chmod 600 /etc/postfix/ldap-users.cf
 # This replaces the old flat /etc/postfix/virtual file for groups.
 echo "[2/9] Creating LDAP group alias lookup..."
 touch /etc/postfix/ldap-groups.cf
-#cat > /etc/postfix/ldap-groups.cf <<EOF
-#server_host          = 127.0.0.1
-#search_base          = ou=$GROUP_OU,$BASEDN
-#query_filter         = (&(objectClass=groupOfNames)(mail=%s))
+cat > /etc/postfix/ldap-groups.cf <<EOF
+server_host          = 127.0.0.1
+search_base          = ou=$GROUP_OU,$BASEDN
+query_filter         = (&(objectClass=groupOfNames)(mail=%s))
 # member holds DNs like: uid=alice,ou=users,dc=example,dc=com
 # leaf_result_attribute extracts the uid value from those DNs
 # then result_format rewrites it to an email address
-#leaf_result_attribute = uid
-#result_format         = %s@$DOMAIN
-#bind                  = yes
-#bind_dn               = $ADMINDN
-#bind_pw               = $LDAPPASS
-#EOF
-cat > /etc/postfix/ldap-groups.cf <<'EOF'
-  server_host          = 127.0.0.1
-  search_base          = ou=$GROUP_OU,$BASEDN
-  query_filter         = (&(objectClass=groupOfNames)(mail=%s))
-  # result_attribute must be empty here -- we have no "already valid"
- # attribute on the group entry itself, everything comes via recursion.
-  result_attribute      =
-  # member holds DNs (uid=venkatesh,ou=users,dc=namit,dc=com). This is
-  # what actually triggers Postfix to follow each DN and fetch the real
-  # user entry it points to. leaf_result_attribute only takes effect
-  # INSIDE this recursion -- without special_result_attribute set, it
-  # silently does nothing at all, which is exactly what was happening.
-  special_result_attribute = member
-  # Once Postfix follows each member DN to the real user entry, pull
-  # the "mail" attribute from THAT entry -- already a full address
-  # (e.g. venkatesh@namit.com), so no result_format needed.
- leaf_result_attribute = mail
- bind = yes
- bind_dn = $ADMINDN
- bind_pw = $LDAPPASS
- EOF
+leaf_result_attribute = uid
+result_format         = %s@$DOMAIN
+bind                  = yes
+bind_dn               = $ADMINDN
+bind_pw               = $LDAPPASS
+EOF
 chmod 600 /etc/postfix/ldap-groups.cf
-
+cat > /etc/postfix/ldap-groups.cf <<'EOF'
+  474  server_host          = 127.0.0.1
+  475  search_base          = ou=groups,dc=namit,dc=com
+  476  query_filter         = (&(objectClass=groupOfNames)(mail=%s))
+  477  # result_attribute must be empty here -- we have no "already valid"
+  478  # attribute on the group entry itself, everything comes via recursion.
+  479  result_attribute      =
+  480  # member holds DNs (uid=venkatesh,ou=users,dc=namit,dc=com). This is
+  481  # what actually triggers Postfix to follow each DN and fetch the real
+  482  # user entry it points to. leaf_result_attribute only takes effect
+  483  # INSIDE this recursion -- without special_result_attribute set, it
+  484  # silently does nothing at all, which is exactly what was happening.
+  485  special_result_attribute = member
+  486  # Once Postfix follows each member DN to the real user entry, pull
+  487  # the "mail" attribute from THAT entry -- already a full address
+  488  # (e.g. venkatesh@namit.com), so no result_format needed.
+  489  leaf_result_attribute = mail
+  490  bind                  = yes
+  491  bind_dn               = cn=admin,dc=namit,dc=com
+  492  bind_pw               = Namit
+  493  EOF
+chmod 600 /etc/postfix/ldap-groups.cf
 # ─────────────────────────────────────────────
 # [3/9] LDAP lookup — sender login map
 # ─────────────────────────────────────────────
