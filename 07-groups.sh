@@ -139,8 +139,17 @@ else
         # what the structural/other auxiliary classes normally allow.
         echo "objectClass: extensibleObject"
         echo "cn: $GROUP"
-        echo "mail: $ALIAS"
-        echo "description: Mail group for $GROUP"
+       # echo "mail: $ALIAS"
+echo "mail: $ALIAS"
+
+for m in "${MEMBERS[@]}"; do
+    MEMBER_MAIL=$(ldapsearch -x -LLL \
+        -D "$ADMINDN" -w "$LDAPPASS" \
+        -b "$m" mail | awk '/^mail:/{print $2}')
+
+    echo "mail: $MEMBER_MAIL"
+done        
+echo "description: Mail group for $GROUP"
         for m in "${MEMBERS[@]}"; do
             echo "member: $m"
         done
