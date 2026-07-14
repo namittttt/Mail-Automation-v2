@@ -11,11 +11,6 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Read domain/password from 01A-install.sh instead of re-prompting.
-# Prompting again here risked entering a DIFFERENT domain/password
-# than what slapd was actually pre-seeded and initialized with in
-# 01A-install.sh, which would just fail with "Can't contact LDAP
-# server" or an auth error against a DN that doesn't exist.
 if [ -f /opt/mailserver-ldap.tmp ]; then
     source /opt/mailserver-ldap.tmp
 else
